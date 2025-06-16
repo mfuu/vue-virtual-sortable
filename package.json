@@ -1,6 +1,6 @@
 {
   "name": "vue-virtual-sortable",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "A virtual scrolling list component that can be sorted by dragging",
   "main": "dist/virtual-list.min.js",
   "files": [
@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "build": "rollup --config",
+    "publish": "npm publish",
     "core:update": "git submodule update --remote",
     "docs:dev": "vuepress dev docs --temp .temp",
     "docs:build": "vuepress build docs"

@@ -1,5 +1,5 @@
 /*!
- * vue-virtual-sortable v2.0.1
+ * vue-virtual-sortable v2.0.2
  * open source under the MIT license
  * https://github.com/mfuu/vue-virtual-sortable#readme
  */
@@ -1059,7 +1059,7 @@
     return result;
   }
   function isSameValue(a, b) {
-    return a == b;
+    return a === 0 ? a === b : a == b;
   }
   function getDataKey(item, dataKey) {
     return (!Array.isArray(dataKey) ? dataKey.replace(/\[/g, '.').replace(/\]/g, '.').split('.') : dataKey).reduce(function (o, k) {
