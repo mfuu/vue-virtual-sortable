@@ -1,5 +1,5 @@
 /*!
- * vue-virtual-sortable v2.0.2
+ * vue-virtual-sortable v2.0.3
  * open source under the MIT license
  * https://github.com/mfuu/vue-virtual-sortable#readme
  */
@@ -1925,9 +1925,8 @@
           return;
         }
         var sizes = this.virtualRef.sizes.size;
-        var renders = Math.min(this.keeps, this.dataSource.length);
         this.virtualRef.onItemResized(key, size);
-        if (sizes === renders - 1) {
+        if (sizes === this.keeps - 1 && this.dataSource.length > this.keeps) {
           this.virtualRef.updateRange(this.range);
         }
       },

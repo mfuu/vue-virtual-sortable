@@ -302,10 +302,9 @@ const VirtualList = Vue.component('virtual-list', {
       }
 
       const sizes = this.virtualRef.sizes.size;
-      const renders = Math.min(this.keeps, this.dataSource.length);
       this.virtualRef.onItemResized(key, size);
 
-      if (sizes === renders - 1) {
+      if (sizes === this.keeps - 1 && this.dataSource.length > this.keeps) {
         this.virtualRef.updateRange(this.range);
       }
     },
