@@ -3,6 +3,7 @@
 dev
 issues
 coverage
+/dist
 
 # dependencies
 node_modules
@@ -19,3 +20,7 @@ yarn.lock
 # vuepress
 .temp
 docs/*/dist
+
+# System files
+.DS_Store
+Thumbs.db

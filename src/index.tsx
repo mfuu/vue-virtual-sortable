@@ -2,14 +2,19 @@ import Vue from 'vue';
 import Item from './item';
 import { VirtualProps } from './props';
 import {
-  Virtual,
-  Sortable,
-  throttle,
   getDataKey,
-  isSameValue,
-  VirtualAttrs,
+  isEqual,
+  throttle,
   SortableAttrs,
+  VirtualAttrs,
+  VirtualSortable,
+  type DragEvent,
+  type DropEvent,
+  type Range,
+  type ScrollEvent,
 } from './core';
+
+let draggingItem: any;
 
 const VirtualList = Vue.component('virtual-list', {
   model: {
@@ -19,14 +24,12 @@ const VirtualList = Vue.component('virtual-list', {
   props: VirtualProps,
   data() {
     return {
+      VS: null,
       range: { start: 0, end: 0, front: 0, behind: 0 },
-      chosenKey: '',
-      dragging: false,
-      lastList: [],
-      lastLength: null,
+      dragging: '',
       uniqueKeys: [],
-      virtualRef: null,
-      sortableRef: null,
+      lastListLength: null,
+      listLengthWhenTopLoading: null,
     };
   },
 
@@ -34,17 +37,8 @@ const VirtualList = Vue.component('virtual-list', {
     isHorizontal() {
       return this.direction !== 'vertical';
     },
-    itemSizeKey() {
-      return this.isHorizontal ? 'offsetWidth' : 'offsetHeight';
-    },
-    virtualAttributes() {
-      return VirtualAttrs.reduce((res, key) => {
-        res[key] = this[key];
-        return res;
-      }, {});
-    },
-    sortableAttributes() {
-      return SortableAttrs.reduce((res, key) => {
+    vsAttributes() {
+      return [...VirtualAttrs, ...SortableAttrs].reduce((res, key) => {
         res[key] = this[key];
         return res;
       }, {});
@@ -54,26 +48,17 @@ const VirtualList = Vue.component('virtual-list', {
   watch: {
     dataSource: {
       handler() {
-        this._onUpdate();
+        this._onDataSourceChange();
       },
       deep: true,
     },
-    virtualAttributes: {
+    vsAttributes: {
       handler(newVal, oldVal) {
-        if (!this.virtualRef) return;
+        if (!this.VS) return;
+
         for (let key in newVal) {
           if (newVal[key] != oldVal[key]) {
-            this.virtualRef.option(key, newVal[key]);
-          }
-        }
-      },
-    },
-    sortableAttributes: {
-      handler(newVal, oldVal) {
-        if (!this.sortableRef) return;
-        for (let key in newVal) {
-          if (newVal[key] != oldVal[key]) {
-            this.sortableRef.option(key, newVal[key]);
+            this.VS.option(key, newVal[key]);
           }
         }
       },
@@ -82,28 +67,26 @@ const VirtualList = Vue.component('virtual-list', {
 
   activated() {
     // set back offset when awake from keep-alive
-    this.scrollToOffset(this.virtualRef.offset);
+    this.scrollToOffset(this.VS.virtual.offset);
 
-    this.virtualRef.addScrollEventListener();
+    this.VS.call('addScrollEventListener');
   },
 
   deactivated() {
-    this.virtualRef.removeScrollEventListener();
+    this.VS.call('removeScrollEventListener');
   },
 
   created() {
     this.range.end = this.keeps - 1;
-    this._onUpdate();
+    this._onDataSourceChange();
   },
 
   mounted() {
-    this._installVirtual();
-    this._installSortable();
+    this._initVirtualSortable();
   },
 
   beforeDestroy() {
-    this.sortableRef?.destroy();
-    this.virtualRef?.removeScrollEventListener();
+    this.VS.destroy();
   },
 
   methods: {
@@ -111,202 +94,201 @@ const VirtualList = Vue.component('virtual-list', {
      * Git item size by data-key
      */
     getSize(key: any) {
-      return this.virtualRef.getSize(key);
+      return this.VS.call('getSize', key);
     },
 
     /**
      * Get the current scroll height
      */
     getOffset() {
-      return this.virtualRef.getOffset();
+      return this.VS.call('getOffset');
     },
 
     /**
      * Get client viewport size
      */
     getClientSize() {
-      return this.virtualRef.getClientSize();
+      return this.VS.call('getClientSize');
     },
 
     /**
      * Get all scroll size
      */
     getScrollSize() {
-      return this.virtualRef.getScrollSize();
+      return this.VS.call('getScrollSize');
     },
 
     /**
      * Scroll to the specified data-key
      */
-    scrollToKey(key: any) {
+    scrollToKey(key: any, align?: 'top' | 'bottom' | 'auto') {
       const index = this.uniqueKeys.indexOf(key);
       if (index > -1) {
-        this.virtualRef.scrollToIndex(index);
+        this.VS.call('scrollToIndex', index, align);
       }
     },
 
     /**
      * Scroll to the specified index position
      */
-    scrollToIndex(index: number) {
-      this.virtualRef.scrollToIndex(index);
+    scrollToIndex(index: number, align?: 'top' | 'bottom' | 'auto') {
+      this.VS.call('scrollToIndex', index, align);
     },
 
     /**
      * Scroll to the specified offset
      */
     scrollToOffset(offset: number) {
-      this.virtualRef.scrollToOffset(offset);
+      this.VS.call('scrollToOffset', offset);
     },
 
     /**
      * Scroll to top of list
      */
     scrollToTop() {
-      this.virtualRef.scrollToOffset(0);
+      this.scrollToOffset(0);
     },
 
     /**
      * Scroll to bottom of list
      */
     scrollToBottom() {
-      this.virtualRef.scrollToBottom();
+      this.VS.call('scrollToBottom');
     },
 
-    _onUpdate() {
+    _onDataSourceChange() {
       this._updateUniqueKeys();
-      this._updateRange(this.lastList, this.dataSource);
-
-      this.sortableRef?.option('list', this.dataSource);
+      this._detectRangeChange(this.lastListLength, this.dataSource.length);
 
       // top loading: auto scroll to the last offset
-      if (this.lastLength && this.keepOffset) {
-        const index = this.dataSource.length - this.lastLength;
+      if (this.listLengthWhenTopLoading && this.keepOffset) {
+        const index = this.dataSource.length - this.listLengthWhenTopLoading;
         if (index > 0) {
           this.scrollToIndex(index);
         }
-        this.lastLength = null;
+        this.listLengthWhenTopLoading = null;
       }
 
-      this.lastList = [...this.dataSource];
+      this.lastListLength = this.dataSource.length;
     },
 
     _updateUniqueKeys() {
       this.uniqueKeys = this.dataSource.map((item) => getDataKey(item, this.dataKey));
-      this.virtualRef?.option('uniqueKeys', this.uniqueKeys);
-      this.sortableRef?.option('uniqueKeys', this.uniqueKeys);
+      this.VS?.option('uniqueKeys', this.uniqueKeys);
     },
 
-    _updateRange(oldList: any[], newList: any[]) {
-      if (!oldList.length && !newList.length) {
+    _detectRangeChange(oldListLength: number, newListLength: number) {
+      if (!oldListLength && !newListLength) {
         return;
       }
 
-      if (oldList.length === newList.length) {
+      if (oldListLength === newListLength) {
         return;
       }
 
-      let range = { ...this.range };
+      let newRange = { ...this.range };
       if (
-        oldList.length > this.keeps &&
-        newList.length > oldList.length &&
-        this.range.end === oldList.length - 1 &&
-        this._scrolledToBottom()
+        oldListLength > this.keeps &&
+        newListLength > oldListLength &&
+        this.range.end === oldListLength - 1 &&
+        this.VS?.call('isReachedBottom')
       ) {
-        range.start++;
+        newRange.start++;
       }
-      this.virtualRef?.updateRange(range);
-    },
-
-    _scrolledToBottom() {
-      const offset = this.getOffset();
-      const clientSize = this.getClientSize();
-      const scrollSize = this.getScrollSize();
-      return offset + clientSize + 1 >= scrollSize;
-    },
-
-    // virtual init
-    _installVirtual() {
-      this.virtualRef = new Virtual({
-        ...this.virtualAttributes,
-        buffer: Math.round(this.keeps / 3),
-        wrapper: this.$refs.wrapRef,
-        scroller: this.scroller || this.$refs.rootRef,
-        uniqueKeys: this.uniqueKeys,
-        onScroll: (event) => {
-          this.lastLength = null;
-          if (!!this.dataSource.length && event.top) {
-            this._handleToTop();
-          } else if (event.bottom) {
-            this._handleToBottom();
-          }
-        },
-        onUpdate: (range) => {
-          const rangeChanged = range.start !== this.range.start;
-          if (this.dragging && rangeChanged) {
-            this.sortableRef.rangeChanged = true;
-          }
-
-          this.range = range;
-          this.sortableRef?.option('range', range);
-          rangeChanged && this.$emit('rangeChange', range);
-        },
-      });
-    },
-
-    // sortable init
-    _installSortable() {
-      this.sortableRef = new Sortable(this.$refs.rootRef, {
-        ...this.sortableAttributes,
-        list: this.dataSource,
-        uniqueKeys: this.uniqueKeys,
-        onChoose: (event) => {
-          this.chosenKey = event.node.getAttribute('data-key');
-        },
-        onUnChoose: () => {
-          this.chosenKey = '';
-        },
-        onDrag: (event) => {
-          this.dragging = true;
-          if (!this.sortable) {
-            this.virtualRef.enableScroll(false);
-            this.sortableRef.option('autoScroll', false);
-          }
-          this.$emit('drag', event);
-        },
-        onDrop: (event) => {
-          this.dragging = false;
-          this.virtualRef.enableScroll(true);
-          this.sortableRef.option('autoScroll', this.autoScroll);
-
-          if (event.changed) {
-            this.$emit('updateDataSource', event.list);
-          }
-          this.$emit('drop', event);
-        },
-      });
+      this.VS?.call('updateRange', newRange);
     },
 
     _handleToTop: throttle(function () {
+      this.listLengthWhenTopLoading = this.dataSource.length;
       this.$emit('top');
-      this.lastLength = this.dataSource.length;
     }, 50),
 
     _handleToBottom: throttle(function () {
       this.$emit('bottom');
     }, 50),
 
-    _onItemResized(key, size) {
-      if (isSameValue(key, this.chosenKey)) {
+    _onScroll(event: ScrollEvent) {
+      this.listLengthWhenTopLoading = 0;
+      if (!!this.dataSource.length && event.top) {
+        this._handleToTop();
+      } else if (event.bottom) {
+        this._handleToBottom();
+      }
+    },
+
+    _onUpdate(range: Range, changed: boolean) {
+      this.range = range;
+
+      changed && this.$emit('rangeChange', range);
+    },
+
+    _onItemResized(key: any, size: number) {
+      if (isEqual(key, this.dragging) || !this.VS) {
         return;
       }
 
-      const sizes = this.virtualRef.sizes.size;
-      this.virtualRef.onItemResized(key, size);
+      const sizes = this.VS.virtual.sizes.size;
+      this.VS.call('updateItemSize', key, size);
 
       if (sizes === this.keeps - 1 && this.dataSource.length > this.keeps) {
-        this.virtualRef.updateRange(this.range);
+        this.VS.call('updateRange', this.range);
       }
+    },
+
+    _onDrag(event: DragEvent<any>) {
+      const { key, index } = event;
+      const item = this.dataSource[index];
+
+      draggingItem = item;
+      this.dragging = key;
+
+      if (!this.sortable) {
+        this.VS.call('enableScroll', false);
+        this.VS.option('autoScroll', false);
+      }
+      this.$emit('drag', { ...event, item });
+    },
+
+    _onDrop(event: DropEvent<any>) {
+      const item = draggingItem;
+      const { oldIndex, newIndex } = event;
+
+      const oldList = [...this.dataSource];
+      const newList = [...this.dataSource];
+
+      if (oldIndex === -1) {
+        newList.splice(newIndex, 0, item);
+      } else if (newIndex === -1) {
+        newList.splice(oldIndex, 1);
+      } else {
+        newList.splice(oldIndex, 1);
+        newList.splice(newIndex, 0, item);
+      }
+
+      this.VS.call('enableScroll', true);
+      this.VS.option('autoScroll', this.autoScroll);
+
+      this.dragging = '';
+
+      if (event.changed) {
+        this.$emit('updateDataSource', newList);
+      }
+      this.$emit('drop', { ...event, item, list: newList, oldList });
+    },
+
+    _initVirtualSortable() {
+      this.VS = new VirtualSortable(this.$refs.rootElRef, {
+        ...this.vsAttributes,
+        buffer: Math.round(this.keeps / 3),
+        wrapper: this.$refs.wrapElRef,
+        scroller: this.scroller || this.$refs.rootElRef,
+        uniqueKeys: this.uniqueKeys,
+        ghostContainer: this.$refs.wrapElRef,
+        onDrag: (event) => this._onDrag(event),
+        onDrop: (event) => this._onDrop(event),
+        onScroll: (event) => this._onScroll(event),
+        onUpdate: (range, changed) => this._onUpdate(range, changed),
+      });
     },
 
     _renderSpacer(h: Vue.CreateElement, offset: number) {
@@ -329,8 +311,8 @@ const VirtualList = Vue.component('virtual-list', {
         const record = this.dataSource[index];
         if (record) {
           const dataKey = getDataKey(record, this.dataKey);
-          const isChosen = isSameValue(dataKey, this.chosenKey);
-          const itemStyle = this.dragging && isChosen && { display: 'none' };
+          const isDragging = isEqual(dataKey, this.dragging);
+
           renders.push(
             this.$scopedSlots.item
               ? h(
@@ -343,12 +325,12 @@ const VirtualList = Vue.component('virtual-list', {
                     },
                     props: {
                       dataKey,
-                      sizeKey: this.itemSizeKey,
+                      horizontal: this.isHorizontal,
                     },
                     on: {
                       resized: this._onItemResized,
                     },
-                    style: itemStyle,
+                    style: isDragging ? { display: 'none' } : {},
                   },
                   this.$scopedSlots.item({ record, index, dataKey })
                 )
@@ -369,22 +351,22 @@ const VirtualList = Vue.component('virtual-list', {
     const padding = isHorizontal ? `0px ${behind}px 0px ${front}px` : `${front}px 0px ${behind}px`;
     const overflow = isHorizontal ? 'auto hidden' : 'hidden auto';
 
-    const container = tableMode ? 'table' : rootTag;
-    const wrapper = tableMode ? 'tbody' : wrapTag;
+    const rootElTag = tableMode ? 'table' : rootTag;
+    const wrapElTag = tableMode ? 'tbody' : wrapTag;
 
     return h(
-      container,
+      rootElTag,
       {
-        ref: 'rootRef',
+        ref: 'rootElRef',
         style: !this.scroller && !tableMode ? { overflow } : {},
       },
       [
         this.$slots.header,
 
         h(
-          wrapper,
+          wrapElTag,
           {
-            ref: 'wrapRef',
+            ref: 'wrapElRef',
             class: this.wrapClass,
             style: { ...this.wrapStyle, padding: !tableMode && padding },
           },
