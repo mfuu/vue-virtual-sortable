@@ -79,7 +79,7 @@ export const VirtualProps = {
     type: Boolean,
     default: false,
   },
-  fallbackOnBody: {
+  appendToBody: {
     type: Boolean,
     default: false,
   },
@@ -90,6 +90,10 @@ export const VirtualProps = {
   delayOnTouchOnly: {
     type: Boolean,
     default: false,
+  },
+  dropOnAnimationEnd: {
+    type: Boolean,
+    default: true,
   },
   rootTag: {
     type: String,
@@ -130,8 +134,8 @@ export const ItemProps = {
     type: [String, Number],
     default: undefined,
   },
-  sizeKey: {
-    type: String,
-    default: undefined,
+  horizontal: {
+    type: Boolean,
+    default: false,
   },
 };

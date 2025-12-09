@@ -26,8 +26,22 @@ module.exports = {
     ],
 
     sidebar: {
-      '/guide/': ['install', 'emits', 'props', 'methods'],
+      '/guide/': ['install', 'props', 'emits', 'methods'],
       '/demo/': ['basic', 'group', 'infinity', 'horizontal', 'scrollto', 'table', 'scroller'],
+    },
+  },
+
+  configureWebpack: {
+    module: {
+      rules: [
+        {
+          test: /\.ts|\.tsx$/,
+          loader: 'babel-loader',
+        },
+      ],
+    },
+    resolve: {
+      extensions: ['.ts', '.tsx'],
     },
   },
 };

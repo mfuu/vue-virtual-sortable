@@ -30,7 +30,8 @@ const Item = Vue.component('virtual-list-item', {
       this.$emit('resized', this.dataKey, this.getCurrentSize());
     },
     getCurrentSize() {
-      return this.$el ? this.$el[this.sizeKey] : 0;
+      const sizeKey = this.horizontal ? 'offsetWidth' : 'offsetHeight';
+      return this.$el ? this.$el[sizeKey] : 0;
     },
   },
   render() {

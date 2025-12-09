@@ -4,6 +4,12 @@
       <button @click="scrollToIndex">
         scroll to index:
         <input v-model="index" type="number" @click="stopPropagation" />
+        align:
+        <select v-model="align" @click="stopPropagation">
+          <option value="top">top</option>
+          <option value="bottom">bottom</option>
+          <option value="auto">auto</option>
+        </select>
       </button>
       <button @click="scrollToOffset">
         scroll to offset:
@@ -38,6 +44,7 @@ export default {
   data() {
     return {
       index: 20,
+      align: 'top',
       offset: 5000,
       list: getPageData(1000, 0),
     };
@@ -47,7 +54,7 @@ export default {
       e.stopPropagation()
     },
     scrollToIndex() {
-      this.$refs.virtualRef.scrollToIndex(this.index);
+      this.$refs.virtualRef.scrollToIndex(this.index, this.align);
     },
     scrollToOffset() {
       this.$refs.virtualRef.scrollToOffset(this.offset);
