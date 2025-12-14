@@ -31,11 +31,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install submodules
+        run: git submodule update --init --recursive
+
       - name: Build with VitePress
-        run: |
-          npm run core:update
-          npm run docs:build
-          ls
+        run: npm run docs:build
 
       - name: Deploy Github Pages
         uses: JamesIves/github-pages-deploy-action@v4
