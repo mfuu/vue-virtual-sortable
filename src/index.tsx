@@ -279,7 +279,6 @@ const VirtualList = Vue.component('virtual-list', {
     _initVirtualSortable() {
       this.VS = new VirtualSortable(this.$refs.rootElRef, {
         ...this.vsAttributes,
-        buffer: Math.round(this.keeps / 3),
         wrapper: this.$refs.wrapElRef,
         scroller: this.scroller || this.$refs.rootElRef,
         uniqueKeys: this.uniqueKeys,

@@ -23,6 +23,9 @@ export const VirtualProps = {
     type: Number,
     default: undefined,
   },
+  buffer: {
+    type: Number,
+  },
   keepOffset: {
     type: Boolean,
     default: false,
