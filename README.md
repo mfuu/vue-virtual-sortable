@@ -60,6 +60,7 @@ export default {
 | ------------- | ------------------------------------ |
 | `top`         | Scrolled to top of scroll element    |
 | `bottom`      | Scrolled to bottom of scroll element |
+| `scroll`      | Scroll event                         |
 | `drag`        | Element dragging started             |
 | `drop`        | Element dragging is completed        |
 | `rangeChange` | List rendering range changed         |

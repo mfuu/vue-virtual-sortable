@@ -1,8 +1,8 @@
 import Vue from 'vue';
-import { ItemProps } from './props';
+import { ListItemProps } from './props';
 
 const Item = Vue.component('virtual-list-item', {
-  props: ItemProps,
+  props: ListItemProps,
   data() {
     return {
       sizeObserver: null,

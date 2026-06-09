@@ -1,4 +1,4 @@
-export const VirtualProps = {
+export const VirtualListProps = {
   dataSource: {
     type: Array,
     default: () => [],
@@ -132,7 +132,7 @@ export const VirtualProps = {
   },
 };
 
-export const ItemProps = {
+export const ListItemProps = {
   dataKey: {
     type: [String, Number],
     default: undefined,

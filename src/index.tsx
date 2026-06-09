@@ -1,6 +1,6 @@
 import Vue from 'vue';
 import Item from './item';
-import { VirtualProps } from './props';
+import { VirtualListProps } from './props';
 import {
   getDataKey,
   isEqual,
@@ -21,7 +21,7 @@ const VirtualList = Vue.component('virtual-list', {
     prop: 'dataSource',
     event: 'updateDataSource',
   },
-  props: VirtualProps,
+  props: VirtualListProps,
   data() {
     return {
       VS: null,
@@ -208,6 +208,8 @@ const VirtualList = Vue.component('virtual-list', {
     }, 50),
 
     _onScroll(event: ScrollEvent) {
+      this.$emit('scroll', event);
+
       this.listLengthWhenTopLoading = 0;
       if (!!this.dataSource.length && event.top) {
         this._handleToTop();
