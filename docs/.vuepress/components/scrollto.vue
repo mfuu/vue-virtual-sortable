@@ -19,19 +19,18 @@
     <virtual-list
       ref="virtualRef"
       v-model="list"
-      :keeps="15"
       data-key="id"
       handle=".handle"
       chosen-class="chosen"
       class="scrollto-list"
     >
-      <template v-slot:item="{ record, index, dateKey }">
+      <template v-slot:item="{ item, index, key }">
         <div class="list-item">
           <div class="item-title">
-            <span class="index">#{{ record.index }}</span>
+            <span class="index">#{{ item.index }}</span>
             <span class="handle">☰</span>
           </div>
-          <p>{{ record.desc }}</p>
+          <p>{{ item.desc }}</p>
         </div>
       </template>
     </virtual-list>

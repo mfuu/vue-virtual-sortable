@@ -18,7 +18,7 @@ $ yarn add vue-virtual-sortable
     v-model="list"
     data-key="id"
   >
-    <template slot="item" slot-scope="{ record, index, dataKey }">
+    <template slot="item" slot-scope="{ item, index, key }">
       <!-- content -->
     </template>
   </virtual-list>

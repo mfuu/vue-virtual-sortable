@@ -4,7 +4,7 @@ export const VirtualListProps = {
     default: () => [],
   },
   dataKey: {
-    type: String,
+    type: [Function, String],
     required: true,
   },
   scroller: {
@@ -133,8 +133,7 @@ export const VirtualListProps = {
 };
 
 export const ListItemProps = {
-  dataKey: {
-    type: [String, Number],
+  itemKey: {
     default: undefined,
   },
   horizontal: {
